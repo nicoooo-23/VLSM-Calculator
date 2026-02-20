@@ -129,8 +129,8 @@ td {
 }
 
 th {
-    background: linear-gradient(180deg, var(--accent), var(--surface));
-    color: var(--primary-dark);
+    background: var(--primary);
+    color: var(--surface);
     font-weight: 700;
 }
 
