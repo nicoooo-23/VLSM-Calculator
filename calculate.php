@@ -19,17 +19,22 @@ try {
     $calculator = new VLSMCalculator($base);
     $subnets = $calculator->calculate($hosts);
 
+    echo "<!DOCTYPE html>";
+    echo "<html><head><title>VLSM Results</title>";
+    echo "<link rel='stylesheet' type='text/css' href='assets/style.css'>";
+    echo "</head><body><div class='container'>";
+
     echo "<h2>Results</h2>";
     echo "<table border='1'>";
 
     echo "<tr>
-        <th>Hosts</th>
-        <th>Network</th>
-        <th>Prefix</th>
-        <th>Mask</th>
-        <th>First Usable</th>
-        <th>Last Usable</th>
-        <th>Broadcast</th>
+        <th>Number of Hosts</th>
+        <th>Subnet Address</th>
+        <th>Prefix Length</th>
+        <th>Subnet Mask</th>
+        <th>First Usable Address</th>
+        <th>Last Usable Address</th>
+        <th>Broadcast Address</th>
     </tr>";
 
     // Print each calculated subnet
@@ -49,8 +54,9 @@ try {
 
     echo "<br>";
     
-    echo "<button onclick='window.location.href=\"index.php\"'>Calculate Again</button>";
+    echo "<button onclick='window.location.href=\"index.php\"' style='display:block; margin:20px auto;'>Calculate Again</button>";
 
+    echo "</div></body></html>";
 } catch (Exception $e) {
 
     // Show error nicely
