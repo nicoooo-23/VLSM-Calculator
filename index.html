@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VLSM Subnet Calculator</title>
     <link rel="stylesheet" type="text/css" href="assets/style.css">
-    <script src="js/utils.js"></script>
-    <script src="js/calculator.js"></script>
 </head>
 <body>
 <div class="container">
@@ -18,7 +16,7 @@
         </div>
     </div>
 
-    <form id="vlsm-form">
+    <form id="vlsm-form" action="calculate.php" method="POST">
         <input type="hidden" name="mode" id="mode-input" value="ipv4">
         
         <div id="ipv4-section" class="mode-section active">
@@ -39,15 +37,6 @@
 
         <button type="submit">Calculate</button>
     </form>
-
-    <div id="results" style="display:none; margin-top: 40px;">
-        <h3>Results:</h3>
-        <div id="results-content"></div>
-    </div>
-
-    <div id="error" style="display:none; color: red; margin-top: 20px; padding: 10px; background: #ffe6e6; border: 1px solid red;">
-        <strong>Error:</strong> <span id="error-message"></span>
-    </div>
 </div>
 
 <script>
@@ -58,10 +47,6 @@
     const ipv6Section = document.getElementById('ipv6-section');
     const ipv4Input = document.getElementById('base_network_ipv4');
     const ipv6Input = document.getElementById('base_network_ipv6');
-    const resultsDiv = document.getElementById('results');
-    const resultsContent = document.getElementById('results-content');
-    const errorDiv = document.getElementById('error');
-    const errorMessage = document.getElementById('error-message');
 
     modeButtons.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -88,100 +73,17 @@
         });
     });
 
-    // Form submission - calculate client-side
+    // Form submission to pass mode
     form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Clear previous results/errors
-        resultsDiv.style.display = 'none';
-        errorDiv.style.display = 'none';
-        
-        try {
-            const mode = modeInput.value;
-            let baseNetwork, hosts;
-            
-            if (mode === 'ipv4') {
-                baseNetwork = ipv4Input.value.trim();
-                
-                if (!baseNetwork) {
-                    throw new Error('Please enter a valid IPv4 base network');
-                }
-                
-                if (!IPUtils.validateCIDR(baseNetwork)) {
-                    throw new Error('Invalid IPv4 CIDR format. Use format like: 192.168.1.0/24');
-                }
-            } else {
-                baseNetwork = ipv6Input.value.trim();
-                
-                if (!baseNetwork) {
-                    throw new Error('Please enter a valid IPv6 base network');
-                }
-                
-                if (!IPv6Utils.validateCIDR(baseNetwork)) {
-                    throw new Error('Invalid IPv6 CIDR format. Use format like: 2001:db8::/32');
-                }
-            }
-            
-            hosts = document.querySelector('input[name="hosts"]').value.trim();
-            if (!hosts) {
-                throw new Error('Please enter host requirements');
-            }
-            
-            const hostArray = hosts.split(',').map(h => h.trim());
-            
-            // Run calculation
-            let subnets;
-            if (mode === 'ipv4') {
-                const calculator = new VLSMCalculator(baseNetwork);
-                subnets = calculator.calculate(hostArray);
-            } else {
-                const calculator = new IPv6VLSMCalculator(baseNetwork);
-                subnets = calculator.calculate(hostArray);
-            }
-            
-            // Display results
-            displayResults(subnets, mode);
-            
-        } catch (error) {
-            errorMessage.textContent = error.message;
-            errorDiv.style.display = 'block';
+        const mode = modeInput.value;
+        if (mode === 'ipv4' && !ipv4Input.value) {
+            e.preventDefault();
+            alert('Please enter a valid IPv4 base network');
+        } else if (mode === 'ipv6' && !ipv6Input.value) {
+            e.preventDefault();
+            alert('Please enter a valid IPv6 base network');
         }
     });
-    
-    function displayResults(subnets, mode) {
-        let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 20px;">';
-        html += '<tr style="background: #f0f0f0;"><th style="border: 1px solid #ddd; padding: 10px;">Required Hosts</th>';
-        html += '<th style="border: 1px solid #ddd; padding: 10px;">Network</th>';
-        html += '<th style="border: 1px solid #ddd; padding: 10px;">Prefix</th>';
-        
-        if (mode === 'ipv4') {
-            html += '<th style="border: 1px solid #ddd; padding: 10px;">Mask</th>';
-        }
-        
-        html += '<th style="border: 1px solid #ddd; padding: 10px;">First Usable</th>';
-        html += '<th style="border: 1px solid #ddd; padding: 10px;">Last Usable</th>';
-        html += '<th style="border: 1px solid #ddd; padding: 10px;">Broadcast</th></tr>';
-        
-        for (let subnet of subnets) {
-            html += '<tr>';
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.requiredHosts + '</td>';
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.network + '</td>';
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">/' + subnet.prefix + '</td>';
-            
-            if (mode === 'ipv4') {
-                html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.mask + '</td>';
-            }
-            
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.firstUsable + '</td>';
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.lastUsable + '</td>';
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.broadcast + '</td>';
-            html += '</tr>';
-        }
-        
-        html += '</table>';
-        resultsContent.innerHTML = html;
-        resultsDiv.style.display = 'block';
-    }
 </script>
 </body>
 </html>
