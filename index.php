@@ -8,12 +8,28 @@
 </head>
 <body>
 <div class="container">
-    <h2>VLSM Calculator</h2>
+    <div class="header-section">
+        <h2>VLSM Calculator</h2>
+        <div class="mode-toggle">
+            <button class="mode-btn active" data-mode="ipv4">IPv4</button>
+            <button class="mode-btn" data-mode="ipv6">IPv6</button>
+        </div>
+    </div>
 
-    <form action="calculate.php" method="POST">
-        Base Network (CIDR):<br>
-        <input type="text" name="base_network" placeholder="192.168.1.0/24" required>
-        <br><br>
+    <form id="vlsm-form" action="calculate.php" method="POST">
+        <input type="hidden" name="mode" id="mode-input" value="ipv4">
+        
+        <div id="ipv4-section" class="mode-section active">
+            <label for="base_network_ipv4">Base Network (CIDR):</label><br>
+            <input type="text" id="base_network_ipv4" name="base_network" placeholder="192.168.1.0/24" required>
+            <br><br>
+        </div>
+
+        <div id="ipv6-section" class="mode-section">
+            <label for="base_network_ipv6">Base Network (CIDR):</label><br>
+            <input type="text" id="base_network_ipv6" name="base_network_ipv6" placeholder="2001:db8::/32" required>
+            <br><br>
+        </div>
 
         Host Requirements (comma separated):<br>
         <input type="text" name="hosts" placeholder="100,50,20,10" required>
@@ -22,5 +38,56 @@
         <button type="submit">Calculate</button>
     </form>
 </div>
+
+<script>
+    const modeButtons = document.querySelectorAll('.mode-btn');
+    const form = document.getElementById('vlsm-form');
+    const modeInput = document.getElementById('mode-input');
+    const ipv4Section = document.getElementById('ipv4-section');
+    const ipv6Section = document.getElementById('ipv6-section');
+    const ipv4Input = document.getElementById('base_network_ipv4');
+    const ipv6Input = document.getElementById('base_network_ipv6');
+
+    modeButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const mode = this.dataset.mode;
+            
+            // Update active button
+            modeButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update form
+            modeInput.value = mode;
+            
+            if (mode === 'ipv4') {
+                ipv4Section.classList.add('active');
+                ipv6Section.classList.remove('active');
+                ipv4Input.name = 'base_network';
+                ipv6Input.name = 'base_network_ipv6';
+                ipv4Input.required = true;
+                ipv6Input.required = false;
+            } else {
+                ipv6Section.classList.add('active');
+                ipv4Section.classList.remove('active');
+                ipv4Input.name = 'base_network_ipv4';
+                ipv6Input.name = 'base_network';
+                ipv4Input.required = false;
+                ipv6Input.required = true;
+            }
+        });
+    });
+
+    // Form submission to pass mode
+    form.addEventListener('submit', function(e) {
+        const mode = modeInput.value;
+        if (mode === 'ipv4' && !ipv4Input.value) {
+            e.preventDefault();
+            alert('Please enter a valid IPv4 base network');
+        } else if (mode === 'ipv6' && !ipv6Input.value) {
+            e.preventDefault();
+            alert('Please enter a valid IPv6 base network');
+        }
+    });
+</script>
 </body>
 </html>
