@@ -478,6 +478,7 @@
     
     function displayResults(subnets, mode) {
         let html = '<div class="table-container"><table style="width: 100%; border-collapse: collapse; margin-top: 20px;">';
+        html += '<thead>';
         html += '<tr style="background: #f0f0f0;"><th style="border: 1px solid #ddd; padding: 10px;">Required Hosts</th>';
         html += '<th style="border: 1px solid #ddd; padding: 10px;">Network</th>';
         html += '<th style="border: 1px solid #ddd; padding: 10px;">Prefix</th>';
@@ -489,24 +490,26 @@
         html += '<th style="border: 1px solid #ddd; padding: 10px;">First Usable</th>';
         html += '<th style="border: 1px solid #ddd; padding: 10px;">Last Usable</th>';
         html += '<th style="border: 1px solid #ddd; padding: 10px;">Broadcast</th></tr>';
+        html += '</thead>';
+        html += '<tbody>';
         
         for (let subnet of subnets) {
             html += '<tr>';
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.requiredHosts + '</td>';
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.network + '</td>';
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">/' + subnet.prefix + '</td>';
+            html += '<td style="border: 1px solid #ddd; padding: 10px;" data-label="Required Hosts">' + subnet.requiredHosts + '</td>';
+            html += '<td style="border: 1px solid #ddd; padding: 10px;" data-label="Network">' + subnet.network + '</td>';
+            html += '<td style="border: 1px solid #ddd; padding: 10px;" data-label="Prefix">/' + subnet.prefix + '</td>';
             
             if (mode === 'ipv4') {
-                html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.mask + '</td>';
+                html += '<td style="border: 1px solid #ddd; padding: 10px;" data-label="Mask">' + subnet.mask + '</td>';
             }
             
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.firstUsable + '</td>';
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.lastUsable + '</td>';
-            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.broadcast + '</td>';
+            html += '<td style="border: 1px solid #ddd; padding: 10px;" data-label="First Usable">' + subnet.firstUsable + '</td>';
+            html += '<td style="border: 1px solid #ddd; padding: 10px;" data-label="Last Usable">' + subnet.lastUsable + '</td>';
+            html += '<td style="border: 1px solid #ddd; padding: 10px;" data-label="Broadcast">' + subnet.broadcast + '</td>';
             html += '</tr>';
         }
         
-        html += '</table></div>';
+        html += '</tbody></table></div>';
         resultsContent.innerHTML = html;
         resultsDiv.style.display = 'block';
     }
