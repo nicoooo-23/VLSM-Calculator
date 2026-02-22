@@ -23,18 +23,18 @@
         
         <div id="ipv4-section" class="mode-section active">
             <label for="base_network_ipv4">Base Network (CIDR):</label><br>
-            <input type="text" id="base_network_ipv4" name="base_network" placeholder="192.168.1.0/24" required>
+            <input type="text" id="base_network_ipv4" name="base_network" placeholder="192.168.1.0/24">
             <br><br>
         </div>
 
         <div id="ipv6-section" class="mode-section">
             <label for="base_network_ipv6">Base Network (CIDR):</label><br>
-            <input type="text" id="base_network_ipv6" name="base_network_ipv6" placeholder="2001:db8::/32" required>
+            <input type="text" id="base_network_ipv6" name="base_network_ipv6" placeholder="2001:db8::/32">
             <br><br>
         </div>
 
         Host Requirements (comma separated):<br>
-        <input type="text" name="hosts" placeholder="100,50,20,10" required>
+        <input type="text" name="hosts" placeholder="100,50,20,10">
         <br><br>
 
         <button type="submit">Calculate</button>
@@ -79,15 +79,11 @@
                 ipv6Section.classList.remove('active');
                 ipv4Input.name = 'base_network';
                 ipv6Input.name = 'base_network_ipv6';
-                ipv4Input.required = true;
-                ipv6Input.required = false;
             } else {
                 ipv6Section.classList.add('active');
                 ipv4Section.classList.remove('active');
                 ipv4Input.name = 'base_network_ipv4';
                 ipv6Input.name = 'base_network';
-                ipv4Input.required = false;
-                ipv6Input.required = true;
             }
         });
     });
