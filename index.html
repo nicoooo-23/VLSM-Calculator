@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLSM Subnet Calculator</title>
+    <link rel="stylesheet" type="text/css" href="assets/style.css">
+</head>
+<body>
+<div class="container">
+    <div class="header-section">
+        <h2>VLSM Calculator</h2>
+        <div class="mode-toggle">
+            <button class="mode-btn active" data-mode="ipv4">IPv4</button>
+            <button class="mode-btn" data-mode="ipv6">IPv6</button>
+        </div>
+    </div>
+
+    <form id="vlsm-form">
+        <input type="hidden" name="mode" id="mode-input" value="ipv4">
+        
+        <div id="ipv4-section" class="mode-section active">
+            <label for="base_network_ipv4">Base Network (CIDR):</label><br>
+            <input type="text" id="base_network_ipv4" name="base_network" placeholder="192.168.1.0/24">
+            <br><br>
+        </div>
+
+        <div id="ipv6-section" class="mode-section">
+            <label for="base_network_ipv6">Base Network (CIDR):</label><br>
+            <input type="text" id="base_network_ipv6" name="base_network_ipv6" placeholder="2001:db8::/32">
+            <br><br>
+        </div>
+
+        Host Requirements (comma separated):<br>
+        <input type="text" name="hosts" placeholder="100,50,20,10">
+        <br><br>
+
+        <button type="submit">Calculate</button>
+    </form>
+
+    <div id="results" style="display:none; margin-top: 40px;">
+        <h3>Results:</h3>
+        <div id="results-content"></div>
+    </div>
+
+    <div id="error" style="display:none; color: red; margin-top: 20px; padding: 10px; background: #ffe6e6; border: 1px solid red;">
+        <strong>Error:</strong> <span id="error-message"></span>
+    </div>
+</div>
+
+<script>
+    // ===== IPv4 Utilities =====
+    class IPUtils {
+        static validateCIDR(cidr) {
+            const match = cidr.match(/^([0-9.]+)\/(\d{1,2})$/);
+            if (!match) return false;
+
+            const ip = match[1];
+            const prefix = parseInt(match[2]);
+
+            // Validate IP format
+            const parts = ip.split('.');
+            if (parts.length !== 4) return false;
+            for (let part of parts) {
+                const num = parseInt(part);
+                if (isNaN(num) || num < 0 || num > 255) return false;
+            }
+
+            // Validate prefix range
+            return prefix >= 0 && prefix <= 32;
+        }
+
+        static ipToLong(ip) {
+            const parts = ip.split('.');
+            return (parseInt(parts[0]) << 24) + (parseInt(parts[1]) << 16) + (parseInt(parts[2]) << 8) + parseInt(parts[3]);
+        }
+
+        static longToIp(long) {
+            return ((long >>> 24) & 255) + '.' + ((long >>> 16) & 255) + '.' + ((long >>> 8) & 255) + (long & 255);
+        }
+
+        static cidrToMask(prefix) {
+            const mask = -1 << (32 - prefix);
+            return this.longToIp(mask >>> 0);
+        }
+
+        static networkBoundary(network, prefix) {
+            const ipLong = this.ipToLong(network);
+            const mask = -1 << (32 - prefix);
+            return (ipLong & mask) >>> 0;
+        }
+
+        static broadcastAddress(networkLong, prefix) {
+            const hostBits = 32 - prefix;
+            return networkLong + (Math.pow(2, hostBits) - 1);
+        }
+    }
+
+    // ===== IPv6 Utilities =====
+    class IPv6Utils {
+        static validateCIDR(cidr) {
+            const match = cidr.match(/^([0-9a-fA-F:]+)\/(\d{1,3})$/);
+            if (!match) return false;
+
+            const ip = match[1];
+            const prefix = parseInt(match[2]);
+
+            if (prefix < 0 || prefix > 128) return false;
+
+            // Basic IPv6 format check
+            if (!this.isValidIPv6(ip)) return false;
+
+            return true;
+        }
+
+        static isValidIPv6(ip) {
+            // Simple check for IPv6 format
+            return /^[0-9a-fA-F:]*$/.test(ip) && ip.split(':').length <= 8;
+        }
+
+        static ipv6ToBinary(ip) {
+            const parts = this.expandIPv6(ip).split(':');
+            let binary = '';
+
+            for (let part of parts) {
+                const hex = part.padStart(4, '0');
+                const dec = parseInt(hex, 16);
+                binary += dec.toString(2).padStart(16, '0');
+            }
+
+            return binary.padEnd(128, '0');
+        }
+
+        static binaryToIPv6(binary) {
+            binary = binary.padEnd(128, '0');
+            const parts = [];
+
+            for (let i = 0; i < 8; i++) {
+                const chunk = binary.substr(i * 16, 16);
+                const hex = parseInt(chunk, 2).toString(16).padStart(4, '0');
+                parts.push(hex);
+            }
+
+            return this.compressIPv6(parts.join(':'));
+        }
+
+        static expandIPv6(ip) {
+            ip = ip.toLowerCase();
+
+            if (ip.includes('::')) {
+                const [left, right] = ip.split('::');
+                const leftParts = left ? left.split(':') : [];
+                const rightParts = right ? right.split(':') : [];
+                const missing = 8 - (leftParts.length + rightParts.length);
+                const zeroParts = Array(missing).fill('0000');
+                const parts = [...leftParts, ...zeroParts, ...rightParts];
+                ip = parts.join(':');
+            }
+
+            const parts = ip.split(':');
+            return parts.map(p => p.padStart(4, '0')).join(':');
+        }
+
+        static compressIPv6(ip) {
+            // Remove leading zeros from each segment
+            ip = ip.replace(/:0+([0-9a-f])/g, ':$1');
+
+            // Replace longest run of zeros with ::
+            if (/:0(:0)+/.test(ip)) {
+                ip = ip.replace(/(^|:)0(:0)+(?=:|$)/g, '::');
+            }
+
+            ip = ip.replace(/:::/g, '::');
+
+            return ip;
+        }
+
+        static networkBoundary(network, prefix) {
+            const binary = this.ipv6ToBinary(network);
+            return binary.substr(0, prefix) + '0'.repeat(128 - prefix);
+        }
+
+        static broadcastAddress(networkBinary, prefix) {
+            return networkBinary.substr(0, prefix) + '1'.repeat(128 - prefix);
+        }
+
+        static incrementBinary(binary, amount = 1) {
+            binary = binary.padStart(128, '0');
+
+            // Convert binary to decimal using BigInt
+            let value = BigInt(0);
+            for (let bit of binary) {
+                value = (value << BigInt(1)) | BigInt(bit);
+            }
+
+            value += BigInt(amount);
+
+            // Convert back to binary
+            let result = value.toString(2).padStart(128, '0');
+            return result;
+        }
+
+        static decrementBinary(binary, amount = 1) {
+            binary = binary.padStart(128, '0');
+
+            let value = BigInt(0);
+            for (let bit of binary) {
+                value = (value << BigInt(1)) | BigInt(bit);
+            }
+
+            value -= BigInt(amount);
+
+            let result = value.toString(2).padStart(128, '0');
+            return result;
+        }
+
+        static binaryGreaterThan(binary1, binary2) {
+            for (let i = 0; i < 128; i++) {
+                if (binary1[i] > binary2[i]) return true;
+                if (binary1[i] < binary2[i]) return false;
+            }
+            return false;
+        }
+    }
+
+    // ===== IPv4 Subnet Class =====
+    class Subnet {
+        constructor(requiredHosts, networkLong, prefix) {
+            this.requiredHosts = requiredHosts;
+            this.network = IPUtils.longToIp(networkLong);
+            this.prefix = prefix;
+            this.mask = IPUtils.cidrToMask(prefix);
+
+            const hostBits = 32 - prefix;
+            const blockSize = Math.pow(2, hostBits);
+            const broadcastLong = networkLong + blockSize - 1;
+
+            if (prefix >= 31) {
+                this.firstUsable = 'N/A';
+                this.lastUsable = 'N/A';
+            } else {
+                this.firstUsable = IPUtils.longToIp(networkLong + 1);
+                this.lastUsable = IPUtils.longToIp(broadcastLong - 1);
+            }
+
+            this.broadcast = IPUtils.longToIp(broadcastLong);
+        }
+    }
+
+    // ===== IPv4 VLSM Calculator =====
+    class VLSMCalculator {
+        constructor(cidr) {
+            const [network, prefix] = cidr.split('/');
+            this.basePrefix = parseInt(prefix);
+            this.baseNetworkLong = IPUtils.networkBoundary(network, this.basePrefix);
+            this.baseBroadcast = IPUtils.broadcastAddress(
+                this.baseNetworkLong,
+                this.basePrefix
+            );
+            this.currentPointer = this.baseNetworkLong;
+            this.subnets = [];
+        }
+
+        requiredHostBits(hosts) {
+            let h = 0;
+            while (Math.pow(2, h) - 2 < hosts) {
+                h++;
+            }
+            return h;
+        }
+
+        calculate(hostArray) {
+            // Sort in descending order (biggest first)
+            hostArray = hostArray.map(h => parseInt(h)).sort((a, b) => b - a);
+
+            for (let hosts of hostArray) {
+                if (hosts <= 0) {
+                    throw new Error('Invalid host requirement: ' + hosts);
+                }
+
+                const h = this.requiredHostBits(hosts);
+                const prefix = 32 - h;
+                const blockSize = Math.pow(2, h);
+
+                if (prefix < this.basePrefix) {
+                    throw new Error('Subnet larger than base network.');
+                }
+
+                const networkLong = this.currentPointer;
+                const broadcastLong = networkLong + blockSize - 1;
+
+                if (broadcastLong > this.baseBroadcast) {
+                    throw new Error('Subnets exceed base network range.');
+                }
+
+                this.subnets.push(new Subnet(hosts, networkLong, prefix));
+                this.currentPointer = broadcastLong + 1;
+            }
+
+            return this.subnets;
+        }
+    }
+
+    // ===== IPv6 Subnet Class =====
+    class IPv6Subnet {
+        constructor(requiredHosts, networkBinary, prefix) {
+            this.requiredHosts = requiredHosts;
+            this.network = IPv6Utils.binaryToIPv6(networkBinary);
+            this.prefix = prefix;
+
+            if (prefix >= 127) {
+                this.firstUsable = 'N/A';
+                this.lastUsable = 'N/A';
+            } else {
+                const firstBinary = IPv6Utils.incrementBinary(networkBinary, 1);
+                this.firstUsable = IPv6Utils.binaryToIPv6(firstBinary);
+
+                const broadcastBinary = IPv6Utils.broadcastAddress(networkBinary, prefix);
+                const lastBinary = IPv6Utils.decrementBinary(broadcastBinary, 1);
+                this.lastUsable = IPv6Utils.binaryToIPv6(lastBinary);
+            }
+
+            const broadcastBinary = IPv6Utils.broadcastAddress(networkBinary, prefix);
+            this.broadcast = IPv6Utils.binaryToIPv6(broadcastBinary);
+        }
+    }
+
+    // ===== IPv6 VLSM Calculator =====
+    class IPv6VLSMCalculator {
+        constructor(cidr) {
+            const [network, prefix] = cidr.split('/');
+            this.basePrefix = parseInt(prefix);
+            this.baseNetworkBinary = IPv6Utils.networkBoundary(network, this.basePrefix);
+            this.baseBroadcast = IPv6Utils.broadcastAddress(
+                this.baseNetworkBinary,
+                this.basePrefix
+            );
+            this.currentPointer = this.baseNetworkBinary;
+            this.subnets = [];
+        }
+
+        requiredHostBits(hosts) {
+            let h = 0;
+            while (Math.pow(2, h) - 2 < hosts) {
+                h++;
+            }
+            return h;
+        }
+
+        calculate(hostArray) {
+            // Sort in descending order (biggest first)
+            hostArray = hostArray.map(h => parseInt(h)).sort((a, b) => b - a);
+
+            for (let hosts of hostArray) {
+                if (hosts <= 0) {
+                    throw new Error('Invalid host requirement: ' + hosts);
+                }
+
+                const h = this.requiredHostBits(hosts);
+                const prefix = 128 - h;
+
+                if (prefix < this.basePrefix) {
+                    throw new Error('Subnet larger than base network.');
+                }
+
+                const networkBinary = this.currentPointer;
+                const broadcastBinary = IPv6Utils.broadcastAddress(networkBinary, prefix);
+
+                if (IPv6Utils.binaryGreaterThan(broadcastBinary, this.baseBroadcast)) {
+                    throw new Error('Subnets exceed base network range.');
+                }
+
+                this.subnets.push(new IPv6Subnet(hosts, networkBinary, prefix));
+                this.currentPointer = IPv6Utils.incrementBinary(broadcastBinary, 1);
+            }
+
+            return this.subnets;
+        }
+    }
+
+    // ===== Application Logic =====
+    const modeButtons = document.querySelectorAll('.mode-btn');
+    const form = document.getElementById('vlsm-form');
+    const modeInput = document.getElementById('mode-input');
+    const ipv4Section = document.getElementById('ipv4-section');
+    const ipv6Section = document.getElementById('ipv6-section');
+    const ipv4Input = document.getElementById('base_network_ipv4');
+    const ipv6Input = document.getElementById('base_network_ipv6');
+    const resultsDiv = document.getElementById('results');
+    const resultsContent = document.getElementById('results-content');
+    const errorDiv = document.getElementById('error');
+    const errorMessage = document.getElementById('error-message');
+
+    modeButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const mode = this.dataset.mode;
+            
+            // Update active button
+            modeButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update form
+            modeInput.value = mode;
+            
+            if (mode === 'ipv4') {
+                ipv4Section.classList.add('active');
+                ipv6Section.classList.remove('active');
+                ipv4Input.name = 'base_network';
+                ipv6Input.name = 'base_network_ipv6';
+            } else {
+                ipv6Section.classList.add('active');
+                ipv4Section.classList.remove('active');
+                ipv4Input.name = 'base_network_ipv4';
+                ipv6Input.name = 'base_network';
+            }
+        });
+    });
+
+    // Form submission - calculate client-side
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Clear previous results/errors
+        resultsDiv.style.display = 'none';
+        errorDiv.style.display = 'none';
+        
+        try {
+            const mode = modeInput.value;
+            let baseNetwork, hosts;
+            
+            if (mode === 'ipv4') {
+                baseNetwork = ipv4Input.value.trim();
+                
+                if (!baseNetwork) {
+                    throw new Error('Please enter a valid IPv4 base network');
+                }
+                
+                if (!IPUtils.validateCIDR(baseNetwork)) {
+                    throw new Error('Invalid IPv4 CIDR format. Use format like: 192.168.1.0/24');
+                }
+            } else {
+                baseNetwork = ipv6Input.value.trim();
+                
+                if (!baseNetwork) {
+                    throw new Error('Please enter a valid IPv6 base network');
+                }
+                
+                if (!IPv6Utils.validateCIDR(baseNetwork)) {
+                    throw new Error('Invalid IPv6 CIDR format. Use format like: 2001:db8::/32');
+                }
+            }
+            
+            hosts = document.querySelector('input[name="hosts"]').value.trim();
+            if (!hosts) {
+                throw new Error('Please enter host requirements');
+            }
+            
+            const hostArray = hosts.split(',').map(h => h.trim());
+            
+            // Run calculation
+            let subnets;
+            if (mode === 'ipv4') {
+                const calculator = new VLSMCalculator(baseNetwork);
+                subnets = calculator.calculate(hostArray);
+            } else {
+                const calculator = new IPv6VLSMCalculator(baseNetwork);
+                subnets = calculator.calculate(hostArray);
+            }
+            
+            // Display results
+            displayResults(subnets, mode);
+            
+        } catch (error) {
+            errorMessage.textContent = error.message;
+            errorDiv.style.display = 'block';
+        }
+    });
+    
+    function displayResults(subnets, mode) {
+        let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 20px;">';
+        html += '<tr style="background: #f0f0f0;"><th style="border: 1px solid #ddd; padding: 10px;">Required Hosts</th>';
+        html += '<th style="border: 1px solid #ddd; padding: 10px;">Network</th>';
+        html += '<th style="border: 1px solid #ddd; padding: 10px;">Prefix</th>';
+        
+        if (mode === 'ipv4') {
+            html += '<th style="border: 1px solid #ddd; padding: 10px;">Mask</th>';
+        }
+        
+        html += '<th style="border: 1px solid #ddd; padding: 10px;">First Usable</th>';
+        html += '<th style="border: 1px solid #ddd; padding: 10px;">Last Usable</th>';
+        html += '<th style="border: 1px solid #ddd; padding: 10px;">Broadcast</th></tr>';
+        
+        for (let subnet of subnets) {
+            html += '<tr>';
+            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.requiredHosts + '</td>';
+            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.network + '</td>';
+            html += '<td style="border: 1px solid #ddd; padding: 10px;">/' + subnet.prefix + '</td>';
+            
+            if (mode === 'ipv4') {
+                html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.mask + '</td>';
+            }
+            
+            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.firstUsable + '</td>';
+            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.lastUsable + '</td>';
+            html += '<td style="border: 1px solid #ddd; padding: 10px;">' + subnet.broadcast + '</td>';
+            html += '</tr>';
+        }
+        
+        html += '</table>';
+        resultsContent.innerHTML = html;
+        resultsDiv.style.display = 'block';
+    }
+</script>
+</body>
+</html>
