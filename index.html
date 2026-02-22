@@ -76,7 +76,7 @@
         }
 
         static longToIp(long) {
-            return ((long >>> 24) & 255) + '.' + ((long >>> 16) & 255) + '.' + ((long >>> 8) & 255) + (long & 255);
+            return String((long >>> 24) & 255) + '.' + String((long >>> 16) & 255) + '.' + String((long >>> 8) & 255) + '.' + String(long & 255);
         }
 
         static cidrToMask(prefix) {
