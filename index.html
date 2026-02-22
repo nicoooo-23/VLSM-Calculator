@@ -477,7 +477,7 @@
     });
     
     function displayResults(subnets, mode) {
-        let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 20px;">';
+        let html = '<div class="table-container"><table style="width: 100%; border-collapse: collapse; margin-top: 20px;">';
         html += '<tr style="background: #f0f0f0;"><th style="border: 1px solid #ddd; padding: 10px;">Required Hosts</th>';
         html += '<th style="border: 1px solid #ddd; padding: 10px;">Network</th>';
         html += '<th style="border: 1px solid #ddd; padding: 10px;">Prefix</th>';
@@ -506,7 +506,7 @@
             html += '</tr>';
         }
         
-        html += '</table>';
+        html += '</table></div>';
         resultsContent.innerHTML = html;
         resultsDiv.style.display = 'block';
     }
