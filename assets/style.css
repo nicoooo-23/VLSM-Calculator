@@ -157,6 +157,8 @@ button:hover {
 .table-container {
     overflow-x: auto;
     margin-top: 20px;
+    border-radius: 8px;
+    -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -297,13 +299,49 @@ footer {
         margin-top: 20px;
     }
     
-    table {
-        font-size: 12px;
+    .table-container {
+        overflow-x: visible;
     }
     
-    th,
-    td {
-        padding: 8px 10px;
+    table {
+        font-size: 12px;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    table thead {
+        display: none;
+    }
+    
+    table tr {
+        display: block;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 15px;
+        background: var(--surface);
+    }
+    
+    table td {
+        display: block;
+        padding: 12px;
+        text-align: right;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        padding-left: 50%;
+        position: relative;
+    }
+    
+    table td:last-child {
+        border-bottom: none;
+    }
+    
+    table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 12px;
+        text-align: left;
+        font-weight: bold;
+        color: var(--primary);
     }
     
     caption {
